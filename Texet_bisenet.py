@@ -101,18 +101,22 @@ class ResNetEncoder(nn.Module):
         """
         super().__init__()
         if _resnet == None:
-            _resnet = models.resnet50(pretrained=True)
-        self._resnet = _resnet(pretrained=True)
-        self.conv1 = self._resnet.conv1
-        self.bn1 = self._resnet.bn1
-        self.relu = self._resnet.relu
-        self.maxpool1 = self._resnet.maxpool
-        self.layer1 = self._resnet.layer1
-        self.layer2 = self._resnet.layer2
-        self.layer3 = self._resnet.layer3
-        self.layer4 = self._resnet.layer4
+            resnet = models.resnet18(pretrained=True)
+            self.backbone = resnet
+        else:
+            self.backbone = _resnet
+        
+        self.conv1 = self.backbone.conv1
+        self.bn1 = self.backbone.bn1
+        self.relu = self.backbone.relu
+        self.maxpool = self.backbone.maxpool
+        self.layer1 = self.backbone.layer1
+        self.layer2 = self.backbone.layer2
+        self.layer3 = self.backbone.layer3
+        self.layer4 = self.backbone.layer4
         self.n_channels_x16 = 256
         self.n_channels_x32 = 512
+
 
     def forward(self, x):
         """ Forward pass.
@@ -127,37 +131,15 @@ class ResNetEncoder(nn.Module):
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(self.bn1(x))
-        x = self.maxpool1(x)
+        x = self.maxpool(x)
         feature1 = self.layer1(x)             # 1 / 4
         feature2 = self.layer2(feature1)      # 1 / 8
         x16_feats = self.layer3(feature2)     # 1 / 16
         x32_feats = self.layer4(x16_feats)    # 1 / 32
-        return x16_feats, x32_feats
-
-class ResNet(nn.Module):
-
-    def __init__(self, model):
-        self.encoder = ResNetEncoder(model)
-
-    def forward(self, x):
-        encoder = self.encoder
-        x = encoder.conv1(x)
-        x = encoder.bn1(x)
-        x = encoder.relu(x)
-        x = encoder.maxpool(x)
-
-        blocks = []
-        x = encoder.layer1(x)
-        blocks.append(x)
-        x = encoder.layer2(x)
-        blocks.append(x)
-        x = encoder.layer3(x)
-        blocks.append(x)
-        x = encoder.layer4(x)
-        blocks.append(x)
+              
+        blocks = [feature1, feature2, x16_feats, x32_feats]
 
         return blocks
-
 
 class BiSeNet(nn.Module):
     def __init__(self, out_planes = 2, pretrained_model=None,
@@ -167,7 +149,7 @@ class BiSeNet(nn.Module):
         """   
         super(BiSeNet, self).__init__()
         
-        self.context_path = ResNet(pretrained_model)
+        self.context_path = ResNetEncoder(pretrained_model)
 
         self.business_layer = []
 
@@ -238,8 +220,9 @@ class BiSeNet(nn.Module):
 
         concate_fm = self.ffm(spatial_out, context_out)
         pred_out.append(concate_fm)
-
-        return pred_out[2], pred_out[0], pred_out[1]
+        print('Final vector')
+        print(concate_fm.shape)
+        return self.heads[-1](pred_out[2]), self.heads[0](pred_out[0]), self.heads[1](pred_out[1])
 
 
 class SpatialPath(nn.Module):

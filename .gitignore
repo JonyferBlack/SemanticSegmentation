@@ -1,3 +1,5 @@
 /*.tar
 *.png
 /.ipynb_checkpoints
+/*.rar
+/model/*.pth
