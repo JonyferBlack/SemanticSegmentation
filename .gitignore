@@ -3,3 +3,6 @@
 /.ipynb_checkpoints
 /*.rar
 /model/*.pth
+/*.gz
+/model
+/train

@@ -10,6 +10,19 @@ import torch
 import torch.nn as nn
 
 
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torchvision
+import torchvision.models as models
+from torch.utils.data import Dataset
+import matplotlib.pyplot as plt
+import numpy as np
+import torch
+import torch.nn as nn
+
+debug = False
+
 class ConvBnRelu(nn.Module):
     def __init__(self, in_planes, out_planes, ksize, stride, pad, dilation=1,
                  groups=1, has_bn=True, norm_layer=nn.BatchNorm2d, bn_eps=1e-5,
@@ -137,7 +150,7 @@ class ResNetEncoder(nn.Module):
         x16_feats = self.layer3(feature2)     # 1 / 16
         x32_feats = self.layer4(x16_feats)    # 1 / 32
               
-        blocks = [feature1, feature2, x16_feats, x32_feats]
+        blocks = [feature2, x16_feats, x32_feats]
 
         return blocks
 
@@ -220,8 +233,17 @@ class BiSeNet(nn.Module):
 
         concate_fm = self.ffm(spatial_out, context_out)
         pred_out.append(concate_fm)
-        print('Final vector')
-        print(concate_fm.shape)
+        
+        if debug:
+            print('Final vector')
+            print(concate_fm.shape)
+        
+        masks = F.interpolate(masks, scale_factor=scale_factor, mode='nearest')
+        j = 2
+        for i in range(-1, 1):
+            final_prediction = self.heads[i](pred_out[j])
+            j-=1
+        
         return self.heads[-1](pred_out[2]), self.heads[0](pred_out[0]), self.heads[1](pred_out[1])
 
 
